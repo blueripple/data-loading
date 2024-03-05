@@ -1,25 +1,16 @@
 cabal-version: 3.0
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
---
--- see: https://github.com/sol/hpack
---
--- hash: 2be2bb936e6948877d2d05f4eed593fa0232d9c355405af99d47da9bd7f3ac13
-
 name:           blueripple-data-loading
 version:        0.1.0.0
 synopsis:       data-loading utilities with Frames types and loaders for them
 category:       Data
-homepage:       https://github.com/blueripple/data-sets#readme
-bug-reports:    https://github.com/blueripple/data-sets/issues
+homepage:       https://github.com/blueripple/data-loading#readme
+bug-reports:    https://github.com/blueripple/data-loading/issues
 author:         Adam Conner-Sax
 maintainer:     adam@blueripplepolitics.org
 copyright:      2024 Adam Conner-Sax
 license:        BSD-3-Clause
 build-type:     Simple
-extra-source-files:
-    Changelog.md
-    Readme.md
 
 source-repository head
   type: git
