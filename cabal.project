@@ -38,10 +38,5 @@ source-repository-package
 
 source-repository-package
   type: git
-  location: https://github.com/adamConnerSax/Frames-map-reduce
-  tag: 6d3d9963d3312ad5c10941fcc84f1fd1c30997d8
-
-source-repository-package
-  type: git
   location: https://github.com/adamConnerSax/heidi
   tag: 83e0f7e6ba80baaa18ab7daafe7083828fc74d60
