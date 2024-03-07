@@ -64,6 +64,31 @@ import GHC.TypeLits (Symbol)
 type Stream = Streamly.Stream
 type MonadAsync m = SP.MonadAsync m
 
+logFrame ::
+  (K.KnitEffects r, Foldable f, Show (F.Record rs)) =>
+  f (F.Record rs) ->
+  K.Sem r ()
+logFrame = logFrame' K.Info
+{-# INLINEABLE logFrame #-}
+
+logFrame' ::
+  (K.KnitEffects r, Foldable f, Show (F.Record rs))
+  => K.LogSeverity
+  -> f (F.Record rs)
+  ->K.Sem r ()
+logFrame' ll fr =
+  K.logLE ll $ "\n" <> (T.intercalate "\n" . fmap show $ FL.fold FL.list fr)
+{-# INLINEABLE logFrame' #-}
+
+logCachedFrame ::
+  (K.KnitEffects r, Foldable f, Show (F.Record rs)) =>
+  K.ActionWithCacheTime r (f (F.Record rs)) ->
+  K.Sem r ()
+logCachedFrame fr_C = do
+  fr <- K.ignoreCacheTime fr_C
+  K.logLE K.Info $ "\n" <> (T.intercalate "\n" . fmap show $ FL.fold FL.list fr)
+
+
 sMap :: Monad m => (a -> b) -> Stream m a  -> Stream m b
 sMap = fmap
 {-# INLINE sMap #-}

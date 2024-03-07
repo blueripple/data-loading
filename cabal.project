@@ -11,32 +11,9 @@ allow-newer: polysemy-zoo:ghc-prim, streamly-core
 
 flags: +streamly9
 
-source-repository-package
-  type: git
-  location: https://github.com/adamConnerSax/knit-haskell
-  tag: efd30108b50c523e6b5e62ceb565a21c41b99e03
-
-source-repository-package
-  type: git
-  location: https://github.com/adamConnerSax/Frames-streamly
-  tag: de3ded07b37ab9ac767dcb708b9c2aa861f7d032
-
-source-repository-package
-  type: git
-  location: https://gitlab.com/adamCS/Frames-serialize
-  tag: cc0bad16b2cf221597831e5495c00051572113f9
-
-source-repository-package
-  type: git
-  location: https://github.com/adamConnerSax/Frames-utils
-  tag: e3fbe472d76393bf59e2312388674a122de3c64f
-
-source-repository-package
-  type: git
-  location: https://github.com/adamConnerSax/map-reduce-folds
-  tag: d5f83c524a3503a8d64694dc070ab3ad72c2f9a9
-
-source-repository-package
-  type: git
-  location: https://github.com/adamConnerSax/heidi
-  tag: 83e0f7e6ba80baaa18ab7daafe7083828fc74d60
+import: ../cabal_repo_imports/knit-haskell.project
+import: ../cabal_repo_imports/Frames-streamly.project
+import: ../cabal_repo_imports/Frames-serialize.project
+import: ../cabal_repo_imports/Frames-utils.project
+import: ../cabal_repo_imports/map-reduce-folds.project
+import: ../cabal_repo_imports/heidi.project
