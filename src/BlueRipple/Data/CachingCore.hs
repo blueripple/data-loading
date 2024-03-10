@@ -19,12 +19,8 @@ module BlueRipple.Data.CachingCore
   )
 where
 
-import qualified Control.Foldl as FL
-import qualified Control.Monad.Primitive as Prim
 import qualified Data.ByteString as BS
-import qualified Data.Sequence as Seq
 import qualified Data.Text as T
-import qualified Data.Vector as Vector
 import qualified Data.Vinyl as V
 import qualified Flat
 import qualified Frames as F
@@ -32,7 +28,6 @@ import qualified Frames.InCore as FI
 import qualified Frames.Serialize as FS
 import qualified Knit.Effect.Serialize as KS
 import qualified Knit.Report as K
-import qualified System.Random.MWC as MWC
 
 insureFinalSlash :: Text -> Maybe Text
 insureFinalSlash t = f <$> T.unsnoc t
@@ -194,21 +189,3 @@ flatSerializeDict =
   id
   (fromIntegral . BS.length)
 {-# INLINEABLE flatSerializeDict #-}
-
-
-sampleFrame :: (FI.RecVec rs, Prim.PrimMonad m) => Word32 -> Int -> F.FrameRec rs -> m (F.FrameRec rs)
-sampleFrame seed n rows = do
-  gen <- MWC.initialize (Vector.singleton seed)
-  F.toFrame <$> sample (FL.fold FL.list rows) n gen
-
-sample :: Prim.PrimMonad m => [a] -> Int -> MWC.Gen (Prim.PrimState m) -> m [a]
-sample ys size = go 0 (l - 1) (Seq.fromList ys) where
-    l = length ys
-    go !n !i xs g | n >= size = return $! (toList . Seq.drop (l - size)) xs
-                  | otherwise = do
-                      j <- MWC.uniformR (0, i) g
-                      let toI  = xs `Seq.index` j
-                          toJ  = xs `Seq.index` i
-                          next = (Seq.update i toI . Seq.update j toJ) xs
-                      go (n + 1) (i - 1) next g
-{-# INLINEABLE sample #-}
