@@ -18,7 +18,7 @@ module BlueRipple.Data.CachingCore
     module BlueRipple.Data.CachingCore
   )
 where
-
+import qualified BlueRipple.Utilities.KnitUtils as BRK
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Vinyl as V
@@ -44,7 +44,7 @@ mapDirE :: (Text -> Text) -> Either Text Text -> Either Text Text
 mapDirE f (Left t) = Left $ f t
 mapDirE f (Right t) = Right $ f t
 
-cacheFromDirE :: (K.KnitEffects r, CacheEffects r)
+cacheFromDirE :: (BRK.KnitEffects r, CacheEffects r)
               => Either Text Text -> Text -> K.Sem r Text
 cacheFromDirE dirE n = do
   dirE' <- K.knitMaybe "cacheDirFromDirE: empty directory given in dirE argument!" $ insureFinalSlashE dirE
@@ -52,20 +52,20 @@ cacheFromDirE dirE n = do
     Left cd -> clearIfPresentD' (cd <> n)
     Right cd -> pure (cd <> n)
 
-clearIfPresentD' :: (K.KnitEffects r, CacheEffects r) => T.Text -> K.Sem r Text
+clearIfPresentD' :: (BRK.KnitEffects r, CacheEffects r) => T.Text -> K.Sem r Text
 clearIfPresentD' k = do
   K.logLE K.Warning $ "Clearing cached item with key=" <> show k
   K.clearIfPresent @T.Text @CacheData k
   pure k
 
-clearIf' :: (K.KnitEffects r, CacheEffects r) => Bool -> Text -> K.Sem r Text
+clearIf' :: (BRK.KnitEffects r, CacheEffects r) => Bool -> Text -> K.Sem r Text
 clearIf' flag k = if flag then clearIfPresentD' k else pure k
 
-clearIfPresentD :: (K.KnitEffects r, CacheEffects r) => T.Text -> K.Sem r ()
+clearIfPresentD :: (BRK.KnitEffects r, CacheEffects r) => T.Text -> K.Sem r ()
 clearIfPresentD k = void $ clearIfPresentD' k
 
 retrieveOrMakeD ::
-  ( K.KnitEffects r,
+  ( BRK.KnitEffects r,
     CacheEffects r,
     SerializerC b
   ) =>
@@ -76,7 +76,7 @@ retrieveOrMakeD ::
 retrieveOrMakeD = K.retrieveOrMake @SerializerC @CacheData @T.Text
 
 retrieveOrMakeFrame ::
-  ( K.KnitEffects r,
+  ( BRK.KnitEffects r,
     CacheEffects r,
     RecSerializerC rs,
     V.RMap rs,
@@ -91,7 +91,7 @@ retrieveOrMakeFrame key cachedDeps action =
     K.retrieveOrMakeTransformed @SerializerC @CacheData fromFrame toFrame key cachedDeps action
 
 retrieveOrMakeFrameAnd ::
-  ( K.KnitEffects r,
+  ( BRK.KnitEffects r,
     CacheEffects r,
     RecSerializerC rs,
     V.RMap rs,
@@ -109,7 +109,7 @@ retrieveOrMakeFrameAnd key cachedDeps action =
     K.retrieveOrMakeTransformed  @SerializerC @CacheData toFirst fromFirst key cachedDeps action
 
 retrieveOrMake2Frames ::
-  ( K.KnitEffects r,
+  ( BRK.KnitEffects r,
     CacheEffects r,
     RecSerializerC rs1,
     V.RMap rs1,
@@ -129,7 +129,7 @@ retrieveOrMake2Frames key cachedDeps action =
         K.retrieveOrMakeTransformed  @SerializerC @CacheData to from key cachedDeps action
 
 retrieveOrMake3Frames ::
-  ( K.KnitEffects r,
+  ( BRK.KnitEffects r,
     CacheEffects r,
     RecSerializerC rs1,
     V.RMap rs1,
@@ -152,7 +152,7 @@ retrieveOrMake3Frames key cachedDeps action =
         K.retrieveOrMakeTransformed  @SerializerC @CacheData to from key cachedDeps action
 
 retrieveOrMakeRecList ::
-  ( K.KnitEffects r
+  ( BRK.KnitEffects r
   , CacheEffects r
   , RecSerializerC rs
   , V.RMap rs

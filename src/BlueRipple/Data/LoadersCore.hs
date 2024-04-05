@@ -21,6 +21,7 @@ module BlueRipple.Data.LoadersCore
 where
 
 import qualified BlueRipple.Data.CachingCore   as BRC
+import qualified BlueRipple.Utilities.KnitUtils as BRK
 
 import qualified Polysemy as Polysemy
 import qualified Polysemy.Error as Polysemy
@@ -65,14 +66,14 @@ type Stream = Streamly.Stream
 type MonadAsync m = SP.MonadAsync m
 
 logFrame ::
-  (K.KnitEffects r, Foldable f, Show (F.Record rs)) =>
+  (BRK.KnitEffects r, Foldable f, Show (F.Record rs)) =>
   f (F.Record rs) ->
   K.Sem r ()
 logFrame = logFrame' K.Info
 {-# INLINEABLE logFrame #-}
 
 logFrame' ::
-  (K.KnitEffects r, Foldable f, Show (F.Record rs))
+  (BRK.KnitEffects r, Foldable f, Show (F.Record rs))
   => K.LogSeverity
   -> f (F.Record rs)
   ->K.Sem r ()
@@ -81,7 +82,7 @@ logFrame' ll fr =
 {-# INLINEABLE logFrame' #-}
 
 logCachedFrame ::
-  (K.KnitEffects r, Foldable f, Show (F.Record rs)) =>
+  (BRK.KnitEffects r, Foldable f, Show (F.Record rs)) =>
   K.ActionWithCacheTime r (f (F.Record rs)) ->
   K.Sem r ()
 logCachedFrame fr_C = do
@@ -158,7 +159,7 @@ cachedFrameLoader
      , FS.StrictReadRec qs
      , FS.RecVec rs
      , BRC.RecSerializerC rs
-     , K.KnitEffects r
+     , BRK.KnitEffects r
      , BRC.CacheEffects r
      )
   => DataPath
@@ -186,7 +187,7 @@ type StreamlyS = StreamlyStream Stream
 -- routine available.
 frameLoader
   :: forall qs rs r
-  . (K.KnitEffects r
+  . (BRK.KnitEffects r
     , FS.StrictReadRec qs
     , FS.RecVec qs
     , V.RMap qs
@@ -228,7 +229,7 @@ maybeFrameLoader
      , V.RApply qs'
      , qs F.⊆ fs
      , FS.RecVec rs
-     , K.KnitEffects r
+     , BRK.KnitEffects r
      , Show (F.Record qs)
      , V.RMap qs
      , V.RecordToList qs
@@ -292,7 +293,7 @@ maybeRecStreamLoader dataPath mParserOptions mFilterMaybes fixMaybes transformRo
 -- transform to rs
 cachedMaybeFrameLoader
   :: forall fs qs qs' rs r
-   . ( K.KnitEffects r
+   . ( BRK.KnitEffects r
      , BRC.CacheEffects r
      , V.RMap rs
      , V.RMap fs
@@ -388,7 +389,7 @@ logLengthF t = rmapM (\n -> K.logStreamly K.Diagnostic $ t <> " " <> (T.pack $ s
 
 loadToRecList
   :: forall rs r
-  . ( K.KnitEffects r
+  . ( BRK.KnitEffects r
     , FS.StrictReadRec rs
     , V.RMap rs
     )
@@ -401,7 +402,7 @@ loadToRecList po fp filterF = K.streamlyToKnit $ Streamly.toList $ loadToRecStre
 
 loadToFrame
   :: forall rs r
-   . ( K.KnitEffects r
+   . ( BRK.KnitEffects r
      , FS.StrictReadRec rs
      , FS.RecVec rs
      , V.RMap rs
