@@ -77,17 +77,18 @@ logFrame' ::
   => K.LogSeverity
   -> f (F.Record rs)
   ->K.Sem r ()
-logFrame' ll fr =
-  K.logLE ll $ "\n" <> (T.intercalate "\n" . fmap show $ FL.fold FL.list fr)
+logFrame' ll fr = do
+  let (nRows, asList) = FL.fold ((,) <$> FL.length <*> FL.list) fr
+  K.logLE ll $ show nRows <> "rows:\n" <> T.intercalate "\n" (fmap show asList)
 {-# INLINEABLE logFrame' #-}
 
 logCachedFrame ::
   (BRK.KnitEffects r, Foldable f, Show (F.Record rs)) =>
   K.ActionWithCacheTime r (f (F.Record rs)) ->
   K.Sem r ()
-logCachedFrame fr_C = do
-  fr <- K.ignoreCacheTime fr_C
-  K.logLE K.Info $ "\n" <> (T.intercalate "\n" . fmap show $ FL.fold FL.list fr)
+logCachedFrame fr_C =  K.ignoreCacheTime fr_C >>= logFrame
+--  fr <- K.ignoreCacheTime fr_C
+--  K.logLE K.Info $ "\n" <> (T.intercalate "\n" . fmap show $ FL.fold FL.list fr)
 
 
 sMap :: Monad m => (a -> b) -> Stream m a  -> Stream m b

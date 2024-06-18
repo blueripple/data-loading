@@ -20,6 +20,7 @@ library
   exposed-modules: BlueRipple.Data.LoadersCore, BlueRipple.Data.CachingCore
   hs-source-dirs: src
   ghc-options: -Wall -O2 -fno-warn-unused-top-binds -funbox-strict-fields
+  default-extensions: StrictData
   build-depends:
       blueripple-post-tools
     , aeson >= 2.1 && < 2.3
