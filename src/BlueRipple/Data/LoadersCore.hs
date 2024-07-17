@@ -176,7 +176,10 @@ cachedFrameLoader filePath parserOptionsM mFilter fixRow cachePathM key = do
   K.logLE (K.Debug 3) $ "loading or retrieving and saving data at key=" <> cacheKey
   BRC.retrieveOrMakeFrame cacheKey cachedDataPath $ \dataPath -> do
     let recStream = recStreamLoader @qs @rs dataPath parserOptionsM mFilter fixRow
-    K.streamlyToKnit $ FS.inCoreAoS @_ @rs @StreamlyS $ StreamlyStream recStream
+    f <- K.streamlyToKnit $ FS.inCoreAoS @_ @rs @StreamlyS $ StreamlyStream recStream
+    path <- liftIO $ getPath filePath
+    K.logLE K.Info $ "(Re)loaded data from " <> toText path <> ". Got " <> show (F.frameLength f) <> " rows."
+    pure f
 
 
 type StreamlyS = StreamlyStream Stream
@@ -209,6 +212,28 @@ frameLoader filePath mParserOptions mFilter fixRow = do
   K.logLE (K.Debug 3) ("Attempting to load data from " <> toText path <> " into a frame.")
   fmap strictFix <$> loadToFrame parserOptions path filterF
 
+frameLoader' :: forall qs rs r
+                . (BRK.KnitEffects r
+                  , FS.StrictReadRec qs
+                  , FS.RecVec rs
+                  , V.RMap qs
+                  , V.RFoldMap qs
+                  , V.RecordToList qs
+                  , V.RPureConstrained V.KnownField qs
+                  , V.RecApplicative qs
+                  , V.RApply qs
+                  , qs F.⊆ qs
+                  , V.ReifyConstraint Show (Maybe F.:. F.ElField) qs
+                  , V.ReifyConstraint Show F.ElField qs
+                  )
+             => DataPath
+             -> Maybe FS.ParserOptions
+             -> (F.Record qs -> F.Record rs)
+             -> K.Sem r (F.FrameRec rs)
+frameLoader' filePath mParserOptions fixRow =
+  maybeFrameLoader @qs @qs @qs filePath mParserOptions Nothing id fixRow
+
+
 -- file has fs
 -- load fs
 -- rcast to qs
@@ -235,6 +260,9 @@ maybeFrameLoader
      , V.RMap qs
      , V.RecordToList qs
      , (V.ReifyConstraint Show (Maybe F.:. F.ElField) qs)
+     , V.ReifyConstraint Show (Maybe F.:. F.ElField) qs'
+     , V.RMap qs'
+     , V.RecordToList qs'
      )
   => DataPath
   -> Maybe FS.ParserOptions
@@ -244,6 +272,8 @@ maybeFrameLoader
   -> K.Sem r (F.FrameRec rs)
 maybeFrameLoader  dataPath parserOptionsM mFilterMaybes fixMaybes transformRow
   = K.streamlyToKnit $ FS.inCoreAoS $ StreamlyStream $ maybeRecStreamLoader @fs @qs @qs' @rs dataPath parserOptionsM mFilterMaybes fixMaybes transformRow
+
+
 
 -- file has fs
 -- load fs
@@ -268,6 +298,9 @@ maybeRecStreamLoader
      , Show (F.Record qs)
      , V.RecordToList qs
      , (V.ReifyConstraint Show (Maybe F.:. F.ElField) qs)
+     , V.ReifyConstraint Show (Maybe F.:. F.ElField) qs'
+     , V.RMap qs'
+     , V.RecordToList qs'
      )
   => DataPath
   -> Maybe FS.ParserOptions
@@ -314,6 +347,9 @@ cachedMaybeFrameLoader
      , V.RMap qs
      , V.RecordToList qs
      , (V.ReifyConstraint Show (Maybe F.:. F.ElField) qs)
+     , V.ReifyConstraint Show (Maybe F.:. F.ElField) qs'
+     , V.RMap qs'
+     , V.RecordToList qs'
      )
   => DataPath
   -> Maybe FS.ParserOptions
@@ -326,9 +362,13 @@ cachedMaybeFrameLoader
 cachedMaybeFrameLoader dataPath mParserOptions mFilterMaybes fixMaybes transformRow cachePathM key = do
   let cachePath = fromMaybe "data" cachePathM
       cacheKey = cachePath <> "/" <> key
-  BRC.retrieveOrMakeFrame cacheKey (pure ())
-    $ const
-    $ maybeFrameLoader @fs dataPath mParserOptions mFilterMaybes fixMaybes transformRow
+  filePath <- liftIO $ getPath dataPath
+  cachedDataPath :: K.ActionWithCacheTime r DataPath <- liftIO $ dataPathWithCacheTime dataPath
+  K.logLE (K.Debug 3) $ "loading " <> toText filePath <> " or retrieving and saving data at key=" <> cacheKey
+  BRC.retrieveOrMakeFrame cacheKey cachedDataPath $ \dataPath' -> do
+    f <- maybeFrameLoader @fs dataPath' mParserOptions mFilterMaybes fixMaybes transformRow
+    K.logLE K.Info $ "(Re)loaded data from " <> toText filePath <> ". Got " <> show (F.frameLength f) <> " rows."
+    pure f
 
 rmapM :: Monad m => (a -> m b) -> Streamly.Fold.Fold m x a -> Streamly.Fold.Fold m x b
 rmapM = Streamly.Fold.rmapM
@@ -440,6 +480,15 @@ processMaybeRecStream
      , V.RecApplicative rs'
      , V.RApply rs'
      , Show (F.Rec (Maybe F.:. F.ElField) rs)
+     , V.ReifyConstraint Show (Maybe F.:. F.ElField) rs'
+     , V.RMap rs'
+     , V.RecordToList rs'
+     , V.ReifyConstraint Show (Maybe F.:. F.ElField) rs'
+     , V.RMap rs'
+     , V.RecordToList rs'
+     , V.ReifyConstraint Show (Maybe F.:. F.ElField) rs
+     , V.RMap rs
+     , V.RecordToList rs
      )
   => (F.Rec (Maybe F.:. F.ElField) rs -> (F.Rec (Maybe F.:. F.ElField) rs')) -- fix any Nothings you need to/can
   -> (F.Record rs' -> Bool) -- filter after removing Nothings
@@ -448,12 +497,24 @@ processMaybeRecStream
 processMaybeRecStream fixMissing filterRows maybeRecS = do
   let addMissing m l = Map.insertWith (+) l 1 m
       addMissings m = FL.fold (FL.Fold addMissing m id)
-      whatsMissingF ::  (V.RFoldMap qs, V.RPureConstrained V.KnownField qs, V.RecApplicative qs, V.RApply qs)
-                    => Streamly.Fold.Fold K.StreamlyM (F.Rec  (Maybe F.:. F.ElField) qs) (Map Text Int)
-      whatsMissingF = Streamly.Fold.foldl' (\m a -> addMissings m (FM.whatsMissingRow a)) Map.empty
-      logMissingF ::  (V.RFoldMap qs, V.RPureConstrained V.KnownField qs, V.RecApplicative qs, V.RApply qs)
+      whatsMissingF ::  (V.RFoldMap qs
+                        , V.RPureConstrained V.KnownField qs
+                        , V.RecApplicative qs, V.RApply qs
+                        , Show (F.Rec (Maybe F.:. F.ElField) qs)
+                        , V.ReifyConstraint Show (Maybe F.:. F.ElField) qs
+                        , V.RecordToList qs
+                        , V.RMap qs
+                        )
+                    => Streamly.Fold.Fold K.StreamlyM (F.Rec  (Maybe F.:. F.ElField) qs) (Maybe Text, Map Text Int)
+      whatsMissingF = Streamly.Fold.foldl' (\(rM, m) a -> (maybe (Just $ show a) Just rM, addMissings m (FM.whatsMissingRow a))) (Nothing, Map.empty)
+      logMissingF ::  (V.RFoldMap qs, V.RPureConstrained V.KnownField qs, V.RecApplicative qs, V.RApply qs
+                      , V.ReifyConstraint Show (Maybe F.:. F.ElField) qs
+                      , V.RecordToList qs
+                      , V.RMap qs
+                      )
                   =>T.Text -> Streamly.Fold.Fold K.StreamlyM (F.Rec (Maybe F.:. F.ElField) qs) ()
-      logMissingF t = rmapM (\x  -> K.logStreamly K.Diagnostic $ t <> (T.pack $ show x)) whatsMissingF
+      logMissingF t = rmapM (\(mRow, x) -> K.logStreamly K.Diagnostic $ t <> (T.pack $ show x)
+                                           <> maybe "" ("\nExample: " <>) mRow) whatsMissingF
   Streamly.filter filterRows
     $ Streamly.tap (logLengthF "Length after fixing and dropping: ")
     $ Streamly.mapMaybe F.recMaybe
